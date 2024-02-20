@@ -3,6 +3,9 @@ import json
 import sys
 
 import sqlite3
+
+import torch
+import torchaudio
 from PyQt5.QtGui import *
 from PyQt5.QtCore import QThread, QObject, pyqtSignal as Signal, pyqtSlot as Slot
 import time
@@ -13,16 +16,18 @@ import shutil
 import string
 import random
 import os
-import torchaudio
+
 from speechbrain.pretrained import EncoderClassifier
 
 path=''
 name=''
 import sqlite3
 conn = sqlite3.connect('DB.db')
+
+cur = conn.cursor()
 sql = 'create table if not exists voice  (name VARCHAR(255) NOT NULL,embedding TEXT NOT NULL)'
-conn.execute(sql)
-from speechbrain.pretrained import SpeakerRecognition
+cur.execute(sql)
+conn.commit()
 class UploadThread(QThread):
     setlogUpload = Signal(str)
     def __init__(self, parent=None):
@@ -31,26 +36,39 @@ class UploadThread(QThread):
         global  path
         print(path)
         conn = sqlite3.connect('DB.db')
+        cur = conn.cursor()
         self.setlogUpload.emit('Path ='+path[0])
         self.setlogUpload.emit('classifier Load ')
         classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
                                                     savedir="pretrained_models/spkrec-ecapa-voxceleb")
         classifier.hparams.label_encoder.ignore_len()
         self.setlogUpload.emit('Audio Load ')
-        # Compute embeddings
         signal, fs = torchaudio.load(path[0])
+        # Compute embeddings
+        chunk_duration = 2
+        chunk_samples = int(chunk_duration *fs)
+
+        chunks = [signal[i:i + chunk_samples] for i in range(0, len(signal), chunk_samples)]
+        self.setlogUpload.emit('Total Chunk:'+str(len(chunks)))
         self.setlogUpload.emit('Embedding Start....')
-        embeddings = classifier.encode_batch(signal)
+        centroid = torch.zeros((1, 192), dtype=torch.float32)
+        for i, chunk in enumerate(chunks):
+
+            embeddings = classifier.encode_batch(chunk)
+            centroid = torch.cat((centroid, torch.Tensor(embeddings)), 0)
+            self.setlogUpload.emit('Embedding:'+str(i))
+        centroid = centroid[1:, :]
+        centroid = centroid.mean(dim=0)
         self.setlogUpload.emit('Embedding Complete')
         listEm=embeddings[0][0].tolist()
         sql_as_text = json.dumps(listEm)
 
         global name
         try:
-            conn.execute("INSERT INTO voice (name,embedding) VALUES (?, ?)",(name, sql_as_text))
+            cur.execute("INSERT INTO voice (name,embedding) VALUES (?, ?)",(name, sql_as_text))
         except sqlite3.Error as er:
             print('SQLite error: %s' % (' '.join(er.args)))
-
+        conn.commit()
         self.setlogUpload.emit('Database Saved')
 
 
