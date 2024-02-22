@@ -47,14 +47,15 @@ class UploadThread(QThread):
         # Compute embeddings
         chunk_duration = 2
         chunk_samples = int(chunk_duration *fs)
-
+        print(chunk_samples)
         chunks = [signal[i:i + chunk_samples] for i in range(0, len(signal), chunk_samples)]
         self.setlogUpload.emit('Total Chunk:'+str(len(chunks)))
         self.setlogUpload.emit('Embedding Start....')
         centroid = torch.zeros((1, 192), dtype=torch.float32)
         for i, chunk in enumerate(chunks):
-
+            print(chunk.shape)
             embeddings = classifier.encode_batch(chunk)
+            print(embeddings.shape)
             centroid = torch.cat((centroid, torch.Tensor(embeddings)), 0)
             self.setlogUpload.emit('Embedding:'+str(i))
         centroid = centroid[1:, :]
