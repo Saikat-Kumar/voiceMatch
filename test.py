@@ -17,7 +17,7 @@ import string
 import random
 import os
 
-from speechbrain.pretrained import EncoderClassifier
+from speechbrain.inference.classifiers import EncoderClassifier
 
 classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
                                                     savedir="pretrained_models/spkrec-ecapa-voxceleb")
@@ -25,7 +25,8 @@ classifier.hparams.label_encoder.ignore_len()
 
 signal, fs = torchaudio.load('./upload/115EVYW.wav')
 print(signal.shape)
-# Compute embeddings
+
+
 chunk_duration = 2
 chunk_samples = int(chunk_duration *fs)
 print(chunk_samples)
