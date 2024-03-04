@@ -1,7 +1,8 @@
 import glob
 import json
 import sys
-
+import numpy as np
+from numpy.linalg import norm
 import sqlite3
 
 import torch
@@ -17,7 +18,7 @@ import string
 import random
 import os
 
-from speechbrain.pretrained import EncoderClassifier
+from speechbrain.inference.classifiers import EncoderClassifier
 
 path=''
 name=''
@@ -46,16 +47,18 @@ class UploadThread(QThread):
         signal, fs = torchaudio.load(path[0])
         # Compute embeddings
         chunk_duration = 2
-        chunk_samples = int(chunk_duration *fs)
-        print(chunk_samples)
-        chunks = [signal[i:i + chunk_samples] for i in range(0, len(signal), chunk_samples)]
-        self.setlogUpload.emit('Total Chunk:'+str(len(chunks)))
+        chunk_samples = int(chunk_duration * fs)
+        numberOfSample = int(signal.shape[1] / chunk_samples)
+        self.setlogUpload.emit('Total Chunk:'+str(numberOfSample))
         self.setlogUpload.emit('Embedding Start....')
-        centroid = torch.zeros((1, 192), dtype=torch.float32)
-        for i, chunk in enumerate(chunks):
-            print(chunk.shape)
+        beg = 0
+        end = chunk_samples
+        centroid = torch.zeros((1, 1, 192), dtype=torch.float32)
+        for i in range(0, numberOfSample, 1):
+            chunk = signal[0][beg:end]
             embeddings = classifier.encode_batch(chunk)
-            print(embeddings.shape)
+            beg = end + 1
+            end = end + chunk_samples
             centroid = torch.cat((centroid, torch.Tensor(embeddings)), 0)
             self.setlogUpload.emit('Embedding:'+str(i))
         centroid = centroid[1:, :]
@@ -87,29 +90,44 @@ class MatchThread(QThread):
         print(path)
         count=0
         self.setprogress.emit(0)
-        perslot=100/count
-        pbarValue=0
-        highest=0
-        highestFilename = 0
-        verification = SpeakerRecognition.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
-                                                       savedir="pretrained_models/spkrec-ecapa-voxceleb")
+        classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
+                                                    savedir="pretrained_models/spkrec-ecapa-voxceleb")
+        # classifier.hparams.label_encoder.ignore_len()
         conn = sqlite3.connect('DB.db')
-        conn.execute('SELECT * FROM voice')
-        # for row in conn:
-        #     self.setlog.emit(row)
-        # for filename in glob.glob(os.path.join('./upload/', '*.wav')):
-        #     pbarValue = pbarValue+perslot
-        #
-        #     print(path,filename.replace("\\", "/"))
-        #     score, prediction = verification.verify_files(path,
-        #                                                   filename.replace("\\", "/"))
-        #     # Different Speakers
-        #     if(highest<score[0]):
-        #         highest=score[0]
-        #         highestFilename=filename
-        #     self.setprogress.emit(int(pbarValue))
-        #     self.setlog.emit(filename)
-        self.setMatch.emit(highestFilename)
+        self.setlog.emit('Audio Load ')
+        print(path)
+        signal, fs = torchaudio.load(path)
+
+        # Compute embeddings
+        chunk_duration = 2
+        chunk_samples = int(chunk_duration * fs)
+        numberOfSample = int(signal.shape[1] / chunk_samples)
+        self.setlog.emit('Total Chunk:' + str(numberOfSample))
+        self.setlog.emit('Embedding Start....')
+        beg = 0
+        end = chunk_samples
+        centroid = torch.zeros((1, 1, 192), dtype=torch.float32)
+        for i in range(0, numberOfSample, 1):
+            chunk = signal[0][beg:end]
+            embeddings = classifier.encode_batch(chunk)
+            beg = end + 1
+            end = end + chunk_samples
+            centroid = torch.cat((centroid, torch.Tensor(embeddings)), 0)
+            self.setlog.emit('Embedding:' + str(i))
+        centroid = centroid[1:, :]
+        centroid = centroid.mean(dim=0)
+        self.setlog.emit('Embedding Complete')
+        embeding = embeddings[0][0].tolist()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM voice')
+        results = cursor.fetchall()
+        # Iterating over the results
+        for row in results:
+            row = json.loads(row[1])
+            cosine = np.dot(embeding, row) / (norm(embeding) * norm(row))
+            self.setlog.emit('Similarity '+str(cosine))
+
+        # self.setMatch.emit(highestFilename)
     def stop(self):
         print('stop')
 

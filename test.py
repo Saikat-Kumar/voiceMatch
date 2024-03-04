@@ -3,7 +3,8 @@ import json
 import sys
 
 import sqlite3
-
+import numpy as np
+from numpy.linalg import norm
 import torch
 import torchaudio
 from PyQt5.QtGui import *
@@ -29,17 +30,30 @@ print(signal.shape)
 
 chunk_duration = 2
 chunk_samples = int(chunk_duration *fs)
-print(chunk_samples)
-print(signal[0][0:0 + chunk_samples].shape)
-chunks = [signal[0][i:i + chunk_samples] for i in range(0, len(signal), chunk_samples)]
-
+numberOfSample = int(signal.shape[1]/chunk_samples)
+beg=0
+end=chunk_samples
 centroid = torch.zeros((1,1, 192), dtype=torch.float32)
-for i, chunk in enumerate(chunks):
-            print(chunk.shape)
-            embeddings = classifier.encode_batch(chunk)
-            print(embeddings.shape)
-            centroid = torch.cat((centroid, torch.Tensor(embeddings)), 0)
+for i in range(0,numberOfSample,1):
+    chunk=signal[0][beg:end]
+    embeddings = classifier.encode_batch(chunk)
+    beg=end+1
+    end=end+chunk_samples
+    centroid = torch.cat((centroid, torch.Tensor(embeddings)), 0)
+print(centroid.shape)
 
 centroid = centroid[1:, :]
 centroid = centroid.mean(dim=0)
-listEm=embeddings[0][0].tolist()
+embeding=embeddings[0][0].tolist()
+
+
+conn = sqlite3.connect('DB.db')
+cursor = conn.cursor()
+cursor.execute('SELECT * FROM voice')
+results = cursor.fetchall()
+# Iterating over the results
+for row in results:
+    print(row[1])
+    row=json.loads(row[1])
+    cosine = np.dot(embeding, row) / (norm(embeding) * norm(row))
+    print('Similarity ' + str(cosine))
