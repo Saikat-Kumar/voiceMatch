@@ -2,6 +2,8 @@ import glob
 import json
 import sys
 import numpy as np
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 from numpy.linalg import norm
 import sqlite3
 
@@ -19,9 +21,15 @@ import random
 import os
 
 from speechbrain.inference.classifiers import EncoderClassifier
-
+import yt_dlp as youtube_dl
+import subprocess
+import matplotlib.pyplot as plt
+import soundfile as sf
+import numpy as np
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 path=''
 name=''
+url=''
 import sqlite3
 conn = sqlite3.connect('DB.db')
 
@@ -130,12 +138,23 @@ class MatchThread(QThread):
         # self.setMatch.emit(highestFilename)
     def stop(self):
         print('stop')
+class YoutubeThread(QThread):
+    setfigure1 = Signal(str)
+    def __init__(self, parent=None):
+        super(QThread, self).__init__()
+    def run(self):
+        global url
 
+
+    def stop(self):
+        print('stop')
 class mainWindow(QMainWindow,mainui.Ui_MainWindow ):
 
     def __init__(self, parent=None):
         super(mainWindow, self).__init__(parent)
         self.setupUi(self)
+
+        self.getAudio.clicked.connect(self.defAudioget)
         self.search.clicked.connect(self.defMatch)
         self.upload.clicked.connect(self.defCopy)
         self.submitUpload.clicked.connect(self.defsubmitUplaod)
@@ -145,6 +164,7 @@ class mainWindow(QMainWindow,mainui.Ui_MainWindow ):
         self.threadmatch.setprogress.connect(self.defsetprogress)
         self.threadmatch.setlog.connect(self.defsetlog)
         self.threadmatch.setMatch.connect(self.defsetMatch)
+        self.threadYoutube = YoutubeThread()
 
     def defCopy(self):
         fname = QFileDialog.getOpenFileName(self, 'Open file','', "Audio files (*.wav )")
@@ -169,6 +189,46 @@ class mainWindow(QMainWindow,mainui.Ui_MainWindow ):
         self.Matched.setText(txt)
     def defsetlogupload(self,txt):
         self.logupload.addItem(txt)
+    def defAudioget(self):
+        global url
+        # url = self.url.toPlainText()
+        # output_file = 'download'
+        # ydl_opts = {
+        #     'format': 'bestaudio/best',
+        #     'outtmpl': output_file + '.%(ext)s',
+        #     'postprocessors': [{
+        #         'key': 'FFmpegExtractAudio',
+        #         'preferredcodec': 'wav',
+        #         'preferredquality': '192',
+        #     }],
+        #     'ignoreerrors': True,  # Add this option to ignore errors
+        # }
+        # with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        #     ydl.download([url])
+        signal, fs = sf.read('download.wav')
+        Time = np.linspace(0, len(signal) / fs, num=len(signal))
+
+        color = "tab:blue"
+        start_time = 0 / fs
+        end_time = start_time + (len(signal) / fs)
+
+
+        plt.show()
+        print(f'Audio saved as ')
+        Time = np.linspace(0, len(signal) / fs, num=len(signal))
+
+        color = "tab:blue"
+        start_time = 0 / fs
+        end_time = start_time + (len(signal) / fs)
+
+        scene = QtWidgets.QGraphicsScene()
+        fig = Figure(figsize=(7,1))
+        ax = fig.add_subplot(111)
+        ax.plot(np.linspace(start_time, end_time, len(signal)), signal, color=color)
+
+        canvas = FigureCanvas(fig)
+        scene.addWidget(canvas)
+        self.figure1.setScene(scene)
 
 if __name__ == "__main__":
 

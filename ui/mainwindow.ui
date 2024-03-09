@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>460</width>
-    <height>526</height>
+    <width>720</width>
+    <height>572</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -39,8 +39,8 @@
      <rect>
       <x>0</x>
       <y>0</y>
-      <width>474</width>
-      <height>461</height>
+      <width>711</width>
+      <height>541</height>
      </rect>
     </property>
     <property name="font">
@@ -60,14 +60,14 @@
      <enum>QTabWidget::Triangular</enum>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>2</number>
     </property>
     <property name="elideMode">
      <enum>Qt::ElideMiddle</enum>
     </property>
     <widget class="QWidget" name="tab">
      <attribute name="title">
-      <string>Upload Voice</string>
+      <string>       Upload Voice      </string>
      </attribute>
      <widget class="QPushButton" name="upload">
       <property name="geometry">
@@ -142,7 +142,7 @@ color: rgb(255, 255, 255);</string>
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
-      <string>Search Voice</string>
+      <string>     Search Voice       </string>
      </attribute>
      <widget class="QPushButton" name="search">
       <property name="geometry">
@@ -190,6 +190,54 @@ color: rgb(255, 255, 255);</string>
       </property>
      </widget>
     </widget>
+    <widget class="QWidget" name="tab_3">
+     <attribute name="title">
+      <string>       Youtube         </string>
+     </attribute>
+     <widget class="QTextEdit" name="url">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>20</y>
+        <width>241</width>
+        <height>31</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="getAudio">
+      <property name="geometry">
+       <rect>
+        <x>270</x>
+        <y>20</y>
+        <width>121</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Get Audio</string>
+      </property>
+     </widget>
+     <widget class="QGraphicsView" name="figure1">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>70</y>
+        <width>661</width>
+        <height>171</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QGraphicsView" name="figure2">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>250</y>
+        <width>661</width>
+        <height>251</height>
+       </rect>
+      </property>
+     </widget>
+    </widget>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -197,7 +245,7 @@ color: rgb(255, 255, 255);</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>460</width>
+     <width>720</width>
      <height>21</height>
     </rect>
    </property>

@@ -1,59 +1,45 @@
-import glob
-import json
-import sys
-
-import sqlite3
+import yt_dlp as youtube_dl
+import subprocess
+import matplotlib.pyplot as plt
+import soundfile as sf
 import numpy as np
-from numpy.linalg import norm
-import torch
-import torchaudio
-from PyQt5.QtGui import *
-from PyQt5.QtCore import QThread, QObject, pyqtSignal as Signal, pyqtSlot as Slot
-import time
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QFileDialog, QMainWindow, QMessageBox, QApplication
-import ui.mainui as mainui
-import shutil
-import string
-import random
-import os
-
-from speechbrain.inference.classifiers import EncoderClassifier
-
-classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
-                                                    savedir="pretrained_models/spkrec-ecapa-voxceleb")
-classifier.hparams.label_encoder.ignore_len()
-
-signal, fs = torchaudio.load('./upload/115EVYW.wav')
-print(signal.shape)
+def download_audio(url, output_file):
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': output_file + '.%(ext)s',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'wav',
+            'preferredquality': '192',
+        }],
+        'ignoreerrors': True,  # Add this option to ignore errors
+    }
+    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([url])
 
 
-chunk_duration = 2
-chunk_samples = int(chunk_duration *fs)
-numberOfSample = int(signal.shape[1]/chunk_samples)
-beg=0
-end=chunk_samples
-centroid = torch.zeros((1,1, 192), dtype=torch.float32)
-for i in range(0,numberOfSample,1):
-    chunk=signal[0][beg:end]
-    embeddings = classifier.encode_batch(chunk)
-    beg=end+1
-    end=end+chunk_samples
-    centroid = torch.cat((centroid, torch.Tensor(embeddings)), 0)
-print(centroid.shape)
 
-centroid = centroid[1:, :]
-centroid = centroid.mean(dim=0)
-embeding=embeddings[0][0].tolist()
+# URL of the YouTube video
+youtube_url = 'https://www.youtube.com/watch?v=I49VNQ6lmKk'
 
 
-conn = sqlite3.connect('DB.db')
-cursor = conn.cursor()
-cursor.execute('SELECT * FROM voice')
-results = cursor.fetchall()
-# Iterating over the results
-for row in results:
-    print(row[1])
-    row=json.loads(row[1])
-    cosine = np.dot(embeding, row) / (norm(embeding) * norm(row))
-    print('Similarity ' + str(cosine))
+output_file = 'download'
+# Download audio from YouTube
+download_audio(youtube_url, output_file)
+signal, fs = sf.read('download.wav')
+print(f'Audio saved as {output_file}')
+Time = np.linspace(0, len(signal) / fs, num=len(signal))
+
+color="tab:blue"
+start_time = 0 / fs
+end_time = start_time + (len(signal) / fs)
+
+plt.plot(np.linspace(start_time, end_time, len(signal)), signal, color=color)
+plt.xlabel("Time (s)")
+plt.xlim([start_time, end_time])
+
+max_amp = np.max(np.abs([np.max(signal), np.min(signal)]))
+plt.ylim([-max_amp, max_amp])
+
+plt.tight_layout()
+plt.show()

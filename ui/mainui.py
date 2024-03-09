@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(460, 526)
+        MainWindow.resize(720, 572)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.Matched = QtWidgets.QLabel(self.centralwidget)
@@ -27,7 +27,7 @@ class Ui_MainWindow(object):
         self.Matched.setText("")
         self.Matched.setObjectName("Matched")
         self.tabWidget = QtWidgets.QTabWidget(self.centralwidget)
-        self.tabWidget.setGeometry(QtCore.QRect(0, 0, 474, 461))
+        self.tabWidget.setGeometry(QtCore.QRect(0, 0, 711, 541))
         font = QtGui.QFont()
         font.setPointSize(14)
         font.setBold(False)
@@ -81,9 +81,24 @@ class Ui_MainWindow(object):
 "color: rgb(255, 255, 255);")
         self.log.setObjectName("log")
         self.tabWidget.addTab(self.tab_2, "")
+        self.tab_3 = QtWidgets.QWidget()
+        self.tab_3.setObjectName("tab_3")
+        self.url = QtWidgets.QTextEdit(self.tab_3)
+        self.url.setGeometry(QtCore.QRect(10, 20, 241, 31))
+        self.url.setObjectName("url")
+        self.getAudio = QtWidgets.QPushButton(self.tab_3)
+        self.getAudio.setGeometry(QtCore.QRect(270, 20, 121, 31))
+        self.getAudio.setObjectName("getAudio")
+        self.figure1 = QtWidgets.QGraphicsView(self.tab_3)
+        self.figure1.setGeometry(QtCore.QRect(10, 70, 661, 171))
+        self.figure1.setObjectName("figure1")
+        self.figure2 = QtWidgets.QGraphicsView(self.tab_3)
+        self.figure2.setGeometry(QtCore.QRect(10, 250, 661, 251))
+        self.figure2.setObjectName("figure2")
+        self.tabWidget.addTab(self.tab_3, "")
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 460, 21))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 720, 21))
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
@@ -91,7 +106,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
-        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.setCurrentIndex(2)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -100,9 +115,11 @@ class Ui_MainWindow(object):
         self.upload.setText(_translate("MainWindow", "Upload File"))
         self.label.setText(_translate("MainWindow", "Name Of Speaker"))
         self.submitUpload.setText(_translate("MainWindow", "Submit "))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), _translate("MainWindow", "Upload Voice"))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), _translate("MainWindow", "       Upload Voice      "))
         self.search.setText(_translate("MainWindow", "Match Voice"))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("MainWindow", "Search Voice"))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("MainWindow", "     Search Voice       "))
+        self.getAudio.setText(_translate("MainWindow", "Get Audio"))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), _translate("MainWindow", "       Youtube         "))
 
 
 if __name__ == "__main__":
