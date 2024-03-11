@@ -1,11 +1,13 @@
 import glob
 import json
 import sys
+
+import faiss
 import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from numpy.linalg import norm
-import sqlite3
+
 
 import torch
 import torchaudio
@@ -27,25 +29,22 @@ import matplotlib.pyplot as plt
 import soundfile as sf
 import numpy as np
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 path=''
 name=''
 url=''
-import sqlite3
-conn = sqlite3.connect('DB.db')
 
-cur = conn.cursor()
-sql = 'create table if not exists voice  (name VARCHAR(255) NOT NULL,embedding TEXT NOT NULL)'
-cur.execute(sql)
-conn.commit()
 class UploadThread(QThread):
     setlogUpload = Signal(str)
+    startsUp = Signal(int)
+    stopsUp = Signal(int)
     def __init__(self, parent=None):
         super(QThread, self).__init__()
     def run(self):
         global  path
         print(path)
-        conn = sqlite3.connect('DB.db')
-        cur = conn.cursor()
+        self.startsUp.emit(1)
         self.setlogUpload.emit('Path ='+path[0])
         self.setlogUpload.emit('classifier Load ')
         classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
@@ -70,19 +69,25 @@ class UploadThread(QThread):
             centroid = torch.cat((centroid, torch.Tensor(embeddings)), 0)
             self.setlogUpload.emit('Embedding:'+str(i))
         centroid = centroid[1:, :]
-        centroid = centroid.mean(dim=0)
+        embedding = centroid.mean(dim=0)
         self.setlogUpload.emit('Embedding Complete')
-        listEm=embeddings[0][0].tolist()
-        sql_as_text = json.dumps(listEm)
-
+        namenp = np.load("name.npy")
+        embeddingsnp = np.load("embeddings.npy")
+        indexFaiss = faiss.read_index("my_index.index")
+        self.setlogUpload.emit('Databas Loaded')
+        indexFaiss.add(embedding)
         global name
-        try:
-            cur.execute("INSERT INTO voice (name,embedding) VALUES (?, ?)",(name, sql_as_text))
-        except sqlite3.Error as er:
-            print('SQLite error: %s' % (' '.join(er.args)))
-        conn.commit()
-        self.setlogUpload.emit('Database Saved')
+        namenp = np.append(namenp, name)
 
+        embeddingnp=np.append(embeddingsnp, embedding)
+
+        faiss.write_index(indexFaiss, "my_index.index")
+
+        # Save the embeddings and their corresponding IDs
+        np.save("embeddings.npy", embeddingnp)
+        np.save("name.npy", namenp)
+        self.setlogUpload.emit('Databas Saved')
+        self.stopsUp.emit(1)
 
 
     def stop(self):
@@ -91,6 +96,7 @@ class MatchThread(QThread):
     setprogress = Signal(int)
     setlog = Signal(str)
     setMatch = Signal(str)
+
     def __init__(self, parent=None):
         super(QThread, self).__init__()
     def run(self):
@@ -101,9 +107,9 @@ class MatchThread(QThread):
         classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
                                                     savedir="pretrained_models/spkrec-ecapa-voxceleb")
         # classifier.hparams.label_encoder.ignore_len()
-        conn = sqlite3.connect('DB.db')
+
         self.setlog.emit('Audio Load ')
-        print(path)
+
         signal, fs = torchaudio.load(path)
 
         # Compute embeddings
@@ -123,17 +129,19 @@ class MatchThread(QThread):
             centroid = torch.cat((centroid, torch.Tensor(embeddings)), 0)
             self.setlog.emit('Embedding:' + str(i))
         centroid = centroid[1:, :]
-        centroid = centroid.mean(dim=0)
+        embedding = centroid.mean(dim=0)
         self.setlog.emit('Embedding Complete')
-        embeding = embeddings[0][0].tolist()
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM voice')
-        results = cursor.fetchall()
-        # Iterating over the results
-        for row in results:
-            row = json.loads(row[1])
-            cosine = np.dot(embeding, row) / (norm(embeding) * norm(row))
-            self.setlog.emit('Similarity '+str(cosine))
+        indexF = faiss.read_index("my_index.index")
+
+        # Load embeddings and IDs
+        namenp = np.load("name.npy")
+        embeddingsnp = np.load("embeddings.npy")
+        k = 10  # Number of nearest neighbors to retrieve
+        distances, indices = indexF.search(embedding, k)
+
+        print("\nNearest neighbors:")
+        for i, (distance, idx) in enumerate(zip(distances[0], indices[0])):
+            print(f"ID: {namenp[idx]}, Distance: {distance}")
 
         # self.setMatch.emit(highestFilename)
     def stop(self):
@@ -153,13 +161,16 @@ class mainWindow(QMainWindow,mainui.Ui_MainWindow ):
     def __init__(self, parent=None):
         super(mainWindow, self).__init__(parent)
         self.setupUi(self)
-
+        self.movie = QMovie("./ui/assets/loader.gif")
+        self.loaderup.setMovie(self.movie)
         self.getAudio.clicked.connect(self.defAudioget)
         self.search.clicked.connect(self.defMatch)
         self.upload.clicked.connect(self.defCopy)
         self.submitUpload.clicked.connect(self.defsubmitUplaod)
         self.threadupload = UploadThread()
         self.threadupload.setlogUpload.connect(self.defsetlogupload)
+        self.threadupload.startsUp.connect(self.defstartUp)
+        self.threadupload.stopsUp.connect(self.defstopUp)
         self.threadmatch = MatchThread()
         self.threadmatch.setprogress.connect(self.defsetprogress)
         self.threadmatch.setlog.connect(self.defsetlog)
@@ -229,7 +240,13 @@ class mainWindow(QMainWindow,mainui.Ui_MainWindow ):
         canvas = FigureCanvas(fig)
         scene.addWidget(canvas)
         self.figure1.setScene(scene)
-
+    #loader
+    def defstartUp(self,value):
+        self.loaderup.show()
+        self.movie.start()
+    def defstopUp(self,value):
+        self.movie.stop()
+        self.loaderup.hide()
 if __name__ == "__main__":
 
     app = QApplication(sys.argv)

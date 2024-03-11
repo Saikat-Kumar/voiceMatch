@@ -1,45 +1,132 @@
-import yt_dlp as youtube_dl
-import subprocess
-import matplotlib.pyplot as plt
-import soundfile as sf
+# import faiss
+# import numpy as np
+# import torch
+# import torchaudio
+# from speechbrain.inference import EncoderClassifier
+#
+# embeddingnp = np.array([]) # Example embeddings, replace with your own
+# name = np.array([])
+# classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
+#                                                     savedir="pretrained_models/spkrec-ecapa-voxceleb")
+# classifier.hparams.label_encoder.ignore_len()
+#
+# signal, fs = torchaudio.load('./upload/115EVYW.wav')
+# nameVoice='test'
+# # Compute embeddings
+# chunk_duration = 2
+# chunk_samples = int(chunk_duration * fs)
+# numberOfSample = int(signal.shape[1] / chunk_samples)
+#
+# beg = 0
+# end = chunk_samples
+# centroid = torch.zeros((1, 1, 192), dtype=torch.float32)
+# for i in range(0, numberOfSample, 1):
+#             chunk = signal[0][beg:end]
+#             embeddings = classifier.encode_batch(chunk)
+#             beg = end + 1
+#             end = end + chunk_samples
+#             centroid = torch.cat((centroid, torch.Tensor(embeddings)), 0)
+#
+# centroid = centroid[1:, :]
+# embedding = centroid.mean(dim=0)
+# # Build the index
+# index = faiss.IndexFlatL2(embedding.shape[1])
+# index.add(embedding)
+# name = np.append(name, nameVoice)
+#
+# embeddingnp=np.append(embeddingnp, embedding)
+# # Save the index
+# faiss.write_index(index, "my_index.index")
+#
+# # Save the embeddings and their corresponding IDs
+# np.save("embeddings.npy", embeddingnp)
+# np.save("name.npy", name)
+#
+import faiss
 import numpy as np
-def download_audio(url, output_file):
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': output_file + '.%(ext)s',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'wav',
-            'preferredquality': '192',
-        }],
-        'ignoreerrors': True,  # Add this option to ignore errors
-    }
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+import torch
+import torchaudio
+from speechbrain.inference import EncoderClassifier
+import matplotlib.pyplot as plt
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+# Load the index
+index = faiss.read_index("my_index.index")
+colors = np.array(
+    [
+        "tab:blue",
+        "tab:orange",
+        "tab:green",
+        "tab:red",
+        "tab:purple",
+        "tab:brown",
+        "tab:pink",
+        "tab:gray",
+        "tab:olive",
+        "tab:cyan",
+    ]
+)
+# Load embeddings and IDs
+name = np.load("name.npy")
+embeddings = np.load("embeddings.npy")
 
+signal, fs = torchaudio.load('./upload/115EVYW.wav')
+nameVoice='test'
+# Compute embeddings
+chunk_duration = 2
+chunk_samples = int(chunk_duration * fs)
+numberOfSample = int(signal.shape[1] / chunk_samples)
+classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
+                                                     savedir="pretrained_models/spkrec-ecapa-voxceleb")
+classifier.hparams.label_encoder.ignore_len()
+beg = 0
+end = chunk_samples
+centroid = torch.zeros((1, 1, 192), dtype=torch.float32)
+prev=897768
+segstart=0
+segend=0
+plt.figure(figsize=(10,5))
+matchindex=0
+for i in range(0, numberOfSample, 1):
+            chunk = signal[0][beg:end]
+            embedding = classifier.encode_batch(chunk)
+            print(embedding[0][0].shape)
+            distances, indices = index.search(embedding[0], 1)
+            print(indices[0][0])
+            if(i==0):
+                prev=indices[0][0]
+            if(prev!=indices[0][0] and i!=0):
+                print('here')
+                segend=end
+                speech = signal[0][segstart:segend]
+                color = colors[matchindex]
 
+                linelabel = "Speaker {}".format(nameVoice[indices[0][0]])
+                plt.plot(
+                    np.linspace(segstart, segend, len(speech)),
+                    speech,
+                    color=color,
+                    label=linelabel,
+                )
+                segstart=segend+1
+                matchindex=matchindex+1
 
-# URL of the YouTube video
-youtube_url = 'https://www.youtube.com/watch?v=I49VNQ6lmKk'
+            prev = indices[0][0]
 
+            beg = end + 1
+            end = end + chunk_samples
 
-output_file = 'download'
-# Download audio from YouTube
-download_audio(youtube_url, output_file)
-signal, fs = sf.read('download.wav')
-print(f'Audio saved as {output_file}')
-Time = np.linspace(0, len(signal) / fs, num=len(signal))
+speech = signal[0][segstart:segend]
+color = colors[matchindex]
 
-color="tab:blue"
-start_time = 0 / fs
-end_time = start_time + (len(signal) / fs)
-
-plt.plot(np.linspace(start_time, end_time, len(signal)), signal, color=color)
-plt.xlabel("Time (s)")
-plt.xlim([start_time, end_time])
-
-max_amp = np.max(np.abs([np.max(signal), np.min(signal)]))
-plt.ylim([-max_amp, max_amp])
-
+linelabel = "Speaker {}".format(nameVoice[indices[0][0]])
+plt.plot(
+                    np.linspace(segstart, segend, len(speech)),
+                    speech,
+                    color=color,
+                    label=linelabel,
+                )
 plt.tight_layout()
 plt.show()
+
+
