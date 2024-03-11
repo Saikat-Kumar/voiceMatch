@@ -73,7 +73,7 @@ embeddings = np.load("embeddings.npy")
 signal, fs = torchaudio.load('./upload/115EVYW.wav')
 nameVoice='test'
 # Compute embeddings
-chunk_duration = 2
+chunk_duration = 5
 chunk_samples = int(chunk_duration * fs)
 numberOfSample = int(signal.shape[1] / chunk_samples)
 classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
@@ -85,7 +85,7 @@ centroid = torch.zeros((1, 1, 192), dtype=torch.float32)
 prev=897768
 segstart=0
 segend=0
-plt.figure(figsize=(10,5))
+plt.figure(figsize=(5,2))
 matchindex=0
 for i in range(0, numberOfSample, 1):
             chunk = signal[0][beg:end]
@@ -116,12 +116,13 @@ for i in range(0, numberOfSample, 1):
             beg = end + 1
             end = end + chunk_samples
 
-speech = signal[0][segstart:segend]
-color = colors[matchindex]
+speech = signal[0][segstart:end]
+print(segstart,end,len(speech))
+color = colors[0]
 
-linelabel = "Speaker {}".format(nameVoice[indices[0][0]])
+linelabel = "Speaker {}"
 plt.plot(
-                    np.linspace(segstart, segend, len(speech)),
+                    np.linspace(segstart, end, len(speech)),
                     speech,
                     color=color,
                     label=linelabel,
